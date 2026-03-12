@@ -17,7 +17,7 @@ API_VERSION = 40  # remove deprecated LaunchBody fields (v0.10 compat)
 # - This value is maintained by the CI pipeline, DO NOT EDIT this manually.
 # - Compatibility code for versions lower than this can be safely removed.
 # Refer to API_VERSION for more details.
-MIN_COMPATIBLE_API_VERSION = 12
+MIN_COMPATIBLE_API_VERSION = 24
 
 # The semantic version of the minimum compatible API version.
 # Refer to MIN_COMPATIBLE_API_VERSION for more details.
