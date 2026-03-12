@@ -887,17 +887,9 @@ def queue_from_kubernetes_pod(
     if result_type == managed_job_utils.ManagedJobQueueResultType.DICT:
         return jobs
 
-    # Backward compatibility for old jobs controller without filtering
-    # TODO(hailong): remove this after 0.12.0
-    if skip_finished:
-        # Filter out the finished jobs. If a multi-task job is partially
-        # finished, we will include all its tasks.
-        non_finished_tasks = list(
-            filter(lambda job: not job['status'].is_terminal(), jobs))
-        non_finished_job_ids = {job['job_id'] for job in non_finished_tasks}
-        jobs = list(
-            filter(lambda job: job['job_id'] in non_finished_job_ids, jobs))
-    return jobs
+    raise RuntimeError(
+        'Unexpected result type from managed job queue. The jobs controller '
+        'may be running an incompatible version.')
 
 
 def _maybe_restart_controller(
@@ -940,47 +932,6 @@ def _maybe_restart_controller(
 
     assert handle is not None, (controller_status, refresh)
     return handle
-
-
-# For backwards compatibility
-# TODO(hailong): Remove before 0.12.0.
-@usage_lib.entrypoint
-def queue(refresh: bool,
-          skip_finished: bool = False,
-          all_users: bool = False,
-          job_ids: Optional[List[int]] = None) -> List[Dict[str, Any]]:
-    # NOTE(dev): Keep the docstring consistent between the Python API and CLI.
-    """Gets statuses of managed jobs.
-
-    Please refer to sky.cli.job_queue for documentation.
-
-    Returns:
-        [
-            {
-                'job_id': int,
-                'job_name': str,
-                'resources': str,
-                'submitted_at': (float) timestamp of submission,
-                'end_at': (float) timestamp of end,
-                'job_duration': (float) duration in seconds,
-                'recovery_count': (int) Number of retries,
-                'status': (sky.jobs.ManagedJobStatus) of the job,
-                'cluster_resources': (str) resources of the cluster,
-                'region': (str) region of the cluster,
-                'user_name': (Optional[str]) job creator's user name,
-                'user_hash': (str) job creator's user hash,
-                'task_id': (int), set to 0 (except in pipelines, which may have multiple tasks), # pylint: disable=line-too-long
-                'task_name': (str), same as job_name (except in pipelines, which may have multiple tasks), # pylint: disable=line-too-long
-            }
-        ]
-    Raises:
-        sky.exceptions.ClusterNotUpError: the jobs controller is not up or
-            does not exist.
-        RuntimeError: if failed to get the managed jobs with ssh.
-    """
-    jobs, _, _, _ = queue_v2(refresh, skip_finished, all_users, job_ids)
-
-    return jobs
 
 
 @usage_lib.entrypoint
@@ -1084,10 +1035,6 @@ def queue_v2(
     show_jobs_without_user_hash = False
     if not all_users:
         user_hashes = [common_utils.get_user_hash()]
-        # For backwards compatibility, we show jobs that do not have a
-        # user_hash. TODO(cooperc): Remove before 0.12.0.
-        user_hashes.append(None)
-        show_jobs_without_user_hash = True
     elif user_match is not None:
         users = global_user_state.get_user_by_name_match(user_match)
         if not users:
@@ -1158,51 +1105,9 @@ def queue_v2(
     if result_type == managed_job_utils.ManagedJobQueueResultType.DICT:
         return jobs, total, status_counts, total_no_filter
 
-    # Backward compatibility for old jobs controller without filtering
-    # TODO(hailong): remove this after 0.12.0
-    with metrics_lib.time_it('jobs.queue.filter_and_process', group='jobs'):
-        if not all_users:
-
-            def user_hash_matches_or_missing(job: Dict[str, Any]) -> bool:
-                user_hash = job.get('user_hash', None)
-                if user_hash is None:
-                    # For backwards compatibility, we show jobs that do not have
-                    # a user_hash. TODO(cooperc): Remove before 0.12.0.
-                    return True
-                return user_hash == common_utils.get_user_hash()
-
-            jobs = list(filter(user_hash_matches_or_missing, jobs))
-
-        jobs = list(
-            filter(
-                lambda job: job.get('workspace', skylet_constants.
-                                    SKYPILOT_DEFAULT_WORKSPACE) in
-                accessible_workspaces, jobs))
-
-        if skip_finished:
-            # Filter out the finished jobs. If a multi-task job is partially
-            # finished, we will include all its tasks.
-            non_finished_tasks = list(
-                filter(lambda job: not job['status'].is_terminal(), jobs))
-            non_finished_job_ids = {job['job_id'] for job in non_finished_tasks}
-            jobs = list(
-                filter(lambda job: job['job_id'] in non_finished_job_ids, jobs))
-
-        if job_ids:
-            jobs = [job for job in jobs if job['job_id'] in job_ids]
-
-        filtered_jobs, total, status_counts = managed_job_utils.filter_jobs(
-            jobs,
-            workspace_match,
-            name_match,
-            pool_match,
-            page=page,
-            limit=limit,
-            user_match=user_match,
-            enable_user_match=True,
-            statuses=statuses,
-        )
-    return filtered_jobs, total, status_counts, total_no_filter
+    raise RuntimeError(
+        'Unexpected result type from managed job queue. The jobs controller '
+        'may be running an incompatible version.')
 
 
 @usage_lib.entrypoint
