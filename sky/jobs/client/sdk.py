@@ -226,7 +226,8 @@ def queue(
     skip_finished: bool = False,
     all_users: bool = False,
     job_ids: Optional[List[int]] = None
-) -> server_common.RequestId[List[responses.ManagedJobRecord]]:
+) -> server_common.RequestId[Tuple[List[responses.ManagedJobRecord], int, Dict[
+        str, int], int]]:
     """Gets statuses of managed jobs.
 
     Deprecated. Please use queue_v2 instead for better performance.
