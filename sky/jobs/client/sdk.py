@@ -218,12 +218,7 @@ def queue_v2(
     return server_common.get_request_id(response=response)
 
 
-# Deprecated. Please use queue_v2 instead for better performance.
-# In https://github.com/skypilot-org/skypilot/pull/7695, the `queue` function
-# is updated to return new typed data for performance improvement if the API
-# server supports it, which breaks the backward compatibility.
-# In https://github.com/skypilot-org/skypilot/pull/8015, we revert the change
-# and add a new function `queue_v2` to return the new typed data.
+# TODO(dev): Remove in v0.13.0 — use queue_v2 instead.
 @usage_lib.entrypoint
 @server_common.check_server_healthy_or_start
 def queue(
@@ -248,47 +243,21 @@ def queue(
         The request ID of the queue request.
 
     Request Returns:
-        job_records (List[responses.ManagedJobRecord]): A list of dicts, with each dict
-          containing the information of a job.
-
-          .. code-block:: python
-
-            [
-              {
-                'job_id': (int) job id,
-                'job_name': (str) job name,
-                'resources': (str) resources of the job,
-                'submitted_at': (float) timestamp of submission,
-                'end_at': (float) timestamp of end,
-                'job_duration': (float) duration in seconds,
-                'recovery_count': (int) Number of retries,
-                'status': (sky.jobs.ManagedJobStatus) of the job,
-                'cluster_resources': (str) resources of the cluster,
-                'region': (str) region of the cluster,
-                'task_id': (int), set to 0 (except in pipelines, which may have multiple tasks), # pylint: disable=line-too-long
-                'task_name': (str), same as job_name (except in pipelines, which may have multiple tasks), # pylint: disable=line-too-long
-                'internal_external_ips': (List[Tuple[str, str]]) List of (internal_ip, external_ip) tuples for all nodes, # pylint: disable=line-too-long
-                'internal_services': (Dict[str, str]) K8s DNS entries, which maps Pod name to internal service (only for K8s), # pylint: disable=line-too-long
-              }
-            ]
+        job_records (List[responses.ManagedJobRecord]): A list of dicts, with
+          each dict containing the information of a job.
+        total (int): Total number of jobs after filter.
+        status_counts (Dict[str, int]): Status counts after filter.
+        total_no_filter (int): Total number of jobs before filter.
 
     Request Raises:
         sky.exceptions.ClusterNotUpError: the jobs controller is not up or
           does not exist.
         RuntimeError: if failed to get the managed jobs with ssh.
     """
-    body = payloads.JobsQueueBody(
-        refresh=refresh,
-        skip_finished=skip_finished,
-        all_users=all_users,
-        job_ids=job_ids,
-    )
-    response = server_common.make_authenticated_request(
-        'POST',
-        '/jobs/queue',
-        json=json.loads(body.model_dump_json()),
-        timeout=(5, None))
-    return server_common.get_request_id(response=response)
+    return queue_v2(refresh=refresh,
+                    skip_finished=skip_finished,
+                    all_users=all_users,
+                    job_ids=job_ids)
 
 
 @usage_lib.entrypoint

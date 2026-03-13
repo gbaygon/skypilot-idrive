@@ -46,7 +46,7 @@ class RequestName(str, enum.Enum):
     ALL_CONTEXTS = 'all_contexts'
     # Managed jobs requests
     JOBS_LAUNCH = 'jobs.launch'
-    JOBS_QUEUE = 'jobs.queue'
+    JOBS_QUEUE = 'jobs.queue'  # TODO(dev): Remove in v0.13.0.
     JOBS_QUEUE_V2 = 'jobs.queue_v2'
     JOBS_CANCEL = 'jobs.cancel'
     JOBS_LOGS = 'jobs.logs'

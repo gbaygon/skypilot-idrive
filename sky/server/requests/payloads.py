@@ -555,8 +555,9 @@ class JobsLaunchBody(RequestBody):
         return kwargs
 
 
+# TODO(dev): Remove in v0.13.0 — only JobsQueueV2Body is used now.
 class JobsQueueBody(RequestBody):
-    """The request body for the jobs queue endpoint."""
+    """The request body for the jobs queue endpoint (deprecated)."""
     refresh: bool = False
     skip_finished: bool = False
     all_users: bool = False
