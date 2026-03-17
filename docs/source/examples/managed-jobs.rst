@@ -559,6 +559,29 @@ When using a custom bucket (:code:`jobs.bucket`), the job-specific directories (
 .. tip::
   Multiple users can share the same intermediate bucket. Each user's jobs will have their own unique job-specific directories, ensuring that files are kept separate and organized.
 
+.. _nested-skypilot-managed-jobs:
+
+Nested SkyPilot from managed jobs
+----------------------------------
+
+A managed job can call the SkyPilot CLI/SDK to launch additional SkyPilot operations (e.g., nested jobs or clusters). Set :code:`api_access: true` in the task YAML to have SkyPilot automatically inject API server credentials into the job's environment:
+
+.. code-block:: yaml
+
+  api_access: true
+
+  setup: |
+    pip install "skypilot-nightly[remote]"
+
+  run: |
+    sky jobs launch -y -n nested --cpus 2 "echo hello from nested job"
+
+The credentials are automatically injected and revoked when the job finishes.
+
+.. note::
+
+  :code:`api_access` requires the SkyPilot API server to have :ref:`service accounts <service-accounts>` enabled.
+
 .. _jobs-controller:
 
 How it works: The jobs controller

@@ -77,6 +77,8 @@ Below is the configuration syntax and some example values.  See details under ea
     MY_HF_TOKEN: my-secret-value
     WANDB_API_KEY: my-secret-value-2
 
+  :ref:`api_access <yaml-spec-api-access>`: true
+
   :ref:`volumes <yaml-spec-new-volumes>`:
     /mnt/data: volume-name
     /mnt/cache:
@@ -1025,6 +1027,25 @@ Example:
   secrets:
     HF_TOKEN: my-huggingface-token
     WANDB_API_KEY: my-wandb-api-key
+
+.. _yaml-spec-api-access:
+
+``api_access``
+~~~~~~~~~~~~~~
+
+If set to ``true``, SkyPilot injects API server credentials (``SKYPILOT_API_SERVER_ENDPOINT`` and ``SKYPILOT_SERVICE_ACCOUNT_TOKEN``) into the task's environment so that it can call ``sky`` CLI/SDK to launch nested SkyPilot operations.
+
+.. code-block:: yaml
+
+  api_access: true
+
+  setup: |
+    pip install "skypilot-nightly[remote]"
+
+  run: |
+    sky jobs launch -y -n nested --cpus 2 "echo hello from nested job"
+
+See :ref:`Nested SkyPilot from managed jobs <nested-skypilot-managed-jobs>` for details.
 
 .. _yaml-spec-new-volumes:
 
