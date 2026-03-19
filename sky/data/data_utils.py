@@ -21,6 +21,7 @@ from sky.adaptors import azure
 from sky.adaptors import cloudflare
 from sky.adaptors import coreweave
 from sky.adaptors import gcp
+from sky.adaptors import idrive
 from sky.adaptors import ibm
 from sky.adaptors import nebius
 from sky.adaptors import oci
@@ -95,6 +96,14 @@ def split_r2_path(r2_path: str) -> Tuple[str, str]:
       r2_path: str; R2 Path, e.g. r2://imagenet/train/
     """
     path_parts = r2_path.replace('r2://', '').split('/')
+    bucket = path_parts.pop(0)
+    key = '/'.join(path_parts)
+    return bucket, key
+
+
+def split_idrive_path(idrive_path: str) -> Tuple[str, str]:
+    """Splits iDrive Path into Bucket name and Relative Path to Bucket."""
+    path_parts = idrive_path.replace('idrive://', '').split('/')
     bucket = path_parts.pop(0)
     key = '/'.join(path_parts)
     return bucket, key
@@ -325,6 +334,11 @@ def create_r2_client(region: str = 'auto') -> Client:
     return cloudflare.client('s3', region)
 
 
+def create_idrive_client(region: Optional[str] = None) -> Client:
+    """Helper method that connects to Boto3 client for iDrive e2."""
+    return idrive.client('s3', region or idrive.get_region())
+
+
 def create_nebius_client() -> Client:
     """Helper method that connects to Boto3 client for Nebius Object Storage"""
     return nebius.client('s3')
@@ -339,6 +353,13 @@ def verify_r2_bucket(name: str) -> bool:
     r2 = cloudflare.resource('s3')
     bucket = r2.Bucket(name)
     return bucket in r2.buckets.all()
+
+
+def verify_idrive_bucket(name: str) -> bool:
+    """Helper method that checks if the iDrive e2 bucket exists."""
+    idrive_s3 = idrive.resource('s3')
+    bucket = idrive_s3.Bucket(name)
+    return bucket in idrive_s3.buckets.all()
 
 
 def verify_nebius_bucket(name: str) -> bool:
@@ -625,6 +646,7 @@ class Rclone:
         GCS = 'GCS'
         IBM = 'IBM'
         R2 = 'R2'
+        IDRIVE = 'IDRIVE'
         AZURE = 'AZURE'
         NEBIUS = 'NEBIUS'
         COREWEAVE = 'COREWEAVE'
@@ -645,6 +667,7 @@ class Rclone:
                 Rclone.RcloneStores.GCS: 'sky-gcs',
                 Rclone.RcloneStores.IBM: 'sky-ibm',
                 Rclone.RcloneStores.R2: 'sky-r2',
+                Rclone.RcloneStores.IDRIVE: 'sky-idrive',
                 Rclone.RcloneStores.AZURE: 'sky-azure',
                 Rclone.RcloneStores.NEBIUS: 'sky-nebius',
                 Rclone.RcloneStores.COREWEAVE: 'sky-coreweave',
@@ -741,6 +764,24 @@ class Rclone:
                     endpoint = {endpoint}
                     region = auto
                     acl = private
+                    """)
+            elif self is Rclone.RcloneStores.IDRIVE:
+                idrive_session = idrive.session()
+                idrive_credentials = idrive.get_idrive_credentials(
+                    idrive_session)
+                endpoint = idrive.get_endpoint()
+                access_key_id = idrive_credentials.access_key
+                secret_access_key = idrive_credentials.secret_key
+                config = textwrap.dedent(f"""\
+                    [{rclone_profile_name}]
+                    type = s3
+                    provider = Other
+                    access_key_id = {access_key_id}
+                    secret_access_key = {secret_access_key}
+                    endpoint = {endpoint}
+                    region = {idrive.get_region()}
+                    acl = private
+                    force_path_style = true
                     """)
             elif self is Rclone.RcloneStores.AZURE:
                 assert storage_account_name and storage_account_key

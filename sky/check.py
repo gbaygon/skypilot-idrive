@@ -15,6 +15,7 @@ from sky import sky_logging
 from sky import skypilot_config
 from sky.adaptors import cloudflare
 from sky.adaptors import coreweave
+from sky.adaptors import idrive
 from sky.adaptors import vastdata
 from sky.clouds import cloud as sky_cloud
 from sky.skylet import constants
@@ -26,7 +27,7 @@ from sky.utils import ux_utils
 
 CHECK_MARK_EMOJI = '\U00002714'  # Heavy check mark unicode
 PARTY_POPPER_EMOJI = '\U0001F389'  # Party popper unicode
-STORAGE_ONLY_CLOUDS = (cloudflare.NAME, coreweave.NAME, vastdata.NAME)
+STORAGE_ONLY_CLOUDS = (cloudflare.NAME, coreweave.NAME, idrive.NAME, vastdata.NAME)
 
 logger = sky_logging.init_logger(__name__)
 
@@ -157,6 +158,8 @@ def check_capabilities(
                 return cloudflare.NAME, cloudflare
             elif cloud_name.lower().startswith('coreweave'):
                 return coreweave.NAME, coreweave
+            elif cloud_name.lower().startswith('idrive'):
+                return idrive.NAME, idrive
             elif cloud_name.lower().startswith('vastdata'):
                 return vastdata.NAME, vastdata
             else:
@@ -486,6 +489,11 @@ def get_cloud_credential_file_mounts(
     if coreweave_is_enabled:
         coreweave_credential_mounts = coreweave.get_credential_file_mounts()
         file_mounts.update(coreweave_credential_mounts)
+
+    idrive_is_enabled, _ = idrive.check_storage_credentials()
+    if idrive_is_enabled:
+        idrive_credential_mounts = idrive.get_credential_file_mounts()
+        file_mounts.update(idrive_credential_mounts)
 
     vastdata_is_enabled, _ = vastdata.check_storage_credentials()
     if vastdata_is_enabled:

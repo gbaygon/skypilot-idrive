@@ -25,6 +25,7 @@ from sky.adaptors import azure
 from sky.adaptors import cloudflare
 from sky.adaptors import coreweave
 from sky.adaptors import gcp
+from sky.adaptors import idrive
 from sky.adaptors import ibm
 from sky.adaptors import nebius
 from sky.adaptors import oci
@@ -65,6 +66,7 @@ STORE_ENABLED_CLOUDS: List[str] = [
     str(clouds.Nebius()),
     cloudflare.NAME,
     coreweave.NAME,
+    idrive.NAME,
     vastdata.NAME,
 ]
 
@@ -103,6 +105,10 @@ def get_cached_enabled_storage_cloud_names_or_refresh(
     if coreweave_is_enabled:
         enabled_clouds.append(coreweave.NAME)
 
+    idrive_is_enabled, _ = idrive.check_storage_credentials()
+    if idrive_is_enabled:
+        enabled_clouds.append(idrive.NAME)
+
     vastdata_is_enabled, _ = vastdata.check_storage_credentials()
     if vastdata_is_enabled:
         enabled_clouds.append(vastdata.NAME)
@@ -140,6 +146,7 @@ class StoreType(enum.Enum):
     IBM = 'IBM'
     OCI = 'OCI'
     NEBIUS = 'NEBIUS'
+    IDRIVE = 'IDRIVE'
     COREWEAVE = 'COREWEAVE'
     VASTDATA = 'VASTDATA'
     VOLUME = 'VOLUME'
@@ -1137,8 +1144,8 @@ class Storage(object):
                             f'{source} in the file_mounts section of your YAML')
                 is_local_source = True
             elif split_path.scheme in [
-                    's3', 'gs', 'https', 'r2', 'cos', 'oci', 'nebius', 'cw',
-                    'vastdata'
+                    's3', 'gs', 'https', 'r2', 'cos', 'oci', 'nebius', 'idrive',
+                    'cw', 'vastdata'
             ]:
                 is_local_source = False
                 # Storage mounting does not support mounting specific files from
@@ -1163,7 +1170,7 @@ class Storage(object):
                 with ux_utils.print_exception_no_traceback():
                     raise exceptions.StorageSourceError(
                         f'Supported paths: local, s3://, gs://, https://, '
-                        f'r2://, cos://, oci://, nebius://, cw://, '
+                        f'r2://, cos://, oci://, nebius://, idrive://, cw://, '
                         f'vastdata://. Got: {source}')
         return source, is_local_source
 
@@ -1187,6 +1194,7 @@ class Storage(object):
                     'cos',
                     'oci',
                     'nebius',
+                    'idrive',
                     'cw',
                     'vastdata',
             ]:
@@ -4829,6 +4837,56 @@ class S3Store(S3CompatibleStore):
         rclone_profile_name = (
             data_utils.Rclone.RcloneStores.S3.get_profile_name(self.name))
         rclone_config = data_utils.Rclone.RcloneStores.S3.get_config(
+            rclone_profile_name=rclone_profile_name)
+        mount_cached_cmd = mounting_utils.get_mount_cached_cmd(
+            rclone_config, rclone_profile_name, self.bucket.name, mount_path,
+            config)
+        return mounting_utils.get_mounting_command(mount_path, install_cmd,
+                                                   mount_cached_cmd)
+
+
+@register_s3_compatible_store
+class IDriveStore(S3CompatibleStore):
+    """IDrive e2 storage backend."""
+
+    @classmethod
+    def get_config(cls) -> S3CompatibleConfig:
+        """Return the configuration for iDrive e2."""
+        return S3CompatibleConfig(
+            store_type='IDRIVE',
+            url_prefix='idrive://',
+            client_factory=lambda region: data_utils.create_idrive_client(
+                region or idrive.get_region()),
+            resource_factory=lambda name: idrive.resource('s3').Bucket(name),
+            split_path=data_utils.split_idrive_path,
+            verify_bucket=data_utils.verify_idrive_bucket,
+            aws_profile=idrive.IDRIVE_PROFILE_NAME,
+            get_endpoint_url=idrive.get_endpoint,
+            credentials_file=idrive.IDRIVE_CREDENTIALS_PATH,
+            config_file=idrive.IDRIVE_CONFIG_PATH,
+            cloud_name=idrive.NAME,
+            default_region=idrive.DEFAULT_REGION,
+            mount_cmd_factory=cls._get_idrive_mount_cmd,
+        )
+
+    @classmethod
+    def _get_idrive_mount_cmd(cls, bucket_name: str, mount_path: str,
+                              bucket_sub_path: Optional[str]) -> str:
+        """Factory method for iDrive e2 mount command."""
+        return mounting_utils.get_idrive_mount_cmd(
+            idrive.IDRIVE_CREDENTIALS_PATH, idrive.IDRIVE_CONFIG_PATH,
+            idrive.IDRIVE_PROFILE_NAME, bucket_name, idrive.get_endpoint(),
+            idrive.get_region(), mount_path, bucket_sub_path)
+
+    def mount_cached_command(self,
+                             mount_path: str,
+                             config: Optional[MountCachedConfig] = None) -> str:
+        """iDrive-specific cached mount implementation using rclone."""
+        install_cmd = mounting_utils.get_rclone_install_cmd()
+        rclone_profile_name = (
+            data_utils.Rclone.RcloneStores.IDRIVE.get_profile_name(
+                self.name))
+        rclone_config = data_utils.Rclone.RcloneStores.IDRIVE.get_config(
             rclone_profile_name=rclone_profile_name)
         mount_cached_cmd = mounting_utils.get_mount_cached_cmd(
             rclone_config, rclone_profile_name, self.bucket.name, mount_path,

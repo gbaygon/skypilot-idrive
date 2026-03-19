@@ -1551,6 +1551,17 @@ class Task:
                     self.update_file_mounts({
                         mnt_path: blob_path,
                     })
+                elif store_type is storage_lib.StoreType.IDRIVE:
+                    if storage.source is not None and not isinstance(
+                            storage.source,
+                            list) and storage.source.startswith('idrive://'):
+                        blob_path = storage.source
+                    else:
+                        blob_path = 'idrive://' + storage.name
+                    blob_path = storage.get_bucket_sub_path_prefix(blob_path)
+                    self.update_file_mounts({
+                        mnt_path: blob_path,
+                    })
                 elif store_type is storage_lib.StoreType.NEBIUS:
                     if storage.source is not None and not isinstance(
                             storage.source,

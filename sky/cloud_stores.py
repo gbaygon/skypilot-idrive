@@ -20,6 +20,7 @@ from sky.adaptors import azure
 from sky.adaptors import cloudflare
 from sky.adaptors import coreweave
 from sky.adaptors import ibm
+from sky.adaptors import idrive
 from sky.adaptors import nebius
 from sky.adaptors import oci
 from sky.adaptors import vastdata
@@ -427,6 +428,63 @@ class R2CloudStorage(CloudStorage):
         return ' && '.join(all_commands)
 
 
+class IDriveCloudStorage(CloudStorage):
+    """iDrive e2 Cloud Storage."""
+
+    _GET_AWSCLI = [
+        'aws --version >/dev/null 2>&1 || '
+        f'{constants.SKY_UV_PIP_CMD} install awscli',
+    ]
+
+    def is_directory(self, url: str) -> bool:
+        """Returns whether iDrive e2 'url' is a directory."""
+        idrive_s3 = idrive.resource('s3')
+        bucket_name, path = data_utils.split_idrive_path(url)
+        bucket = idrive_s3.Bucket(bucket_name)
+
+        num_objects = 0
+        for obj in bucket.objects.filter(Prefix=path):
+            num_objects += 1
+            if obj.key == path:
+                return False
+            if num_objects == 3:
+                return True
+        return True
+
+    def make_sync_dir_command(self, source: str, destination: str) -> str:
+        """Downloads using AWS CLI."""
+        assert 'idrive://' in source, 'idrive:// is not in source'
+        source = source.replace('idrive://', 's3://')
+        download_via_awscli = (
+            'AWS_SHARED_CREDENTIALS_FILE='
+            f'{idrive.IDRIVE_CREDENTIALS_PATH} '
+            f'AWS_CONFIG_FILE={idrive.IDRIVE_CONFIG_PATH} '
+            f'{constants.SKY_REMOTE_PYTHON_ENV}/bin/aws s3 '
+            'sync --no-follow-symlinks '
+            f'{source} {destination} '
+            f'--profile={idrive.IDRIVE_PROFILE_NAME}')
+
+        all_commands = list(self._GET_AWSCLI)
+        all_commands.append(download_via_awscli)
+        return ' && '.join(all_commands)
+
+    def make_sync_file_command(self, source: str, destination: str) -> str:
+        """Downloads a file using AWS CLI."""
+        assert 'idrive://' in source, 'idrive:// is not in source'
+        source = source.replace('idrive://', 's3://')
+        download_via_awscli = (
+            'AWS_SHARED_CREDENTIALS_FILE='
+            f'{idrive.IDRIVE_CREDENTIALS_PATH} '
+            f'AWS_CONFIG_FILE={idrive.IDRIVE_CONFIG_PATH} '
+            f'{constants.SKY_REMOTE_PYTHON_ENV}/bin/aws s3 '
+            f'cp {source} {destination} '
+            f'--profile={idrive.IDRIVE_PROFILE_NAME}')
+
+        all_commands = list(self._GET_AWSCLI)
+        all_commands.append(download_via_awscli)
+        return ' && '.join(all_commands)
+
+
 class IBMCosCloudStorage(CloudStorage):
     """IBM Cloud Storage."""
     # install rclone if package isn't already installed
@@ -761,6 +819,7 @@ _REGISTRY = {
     'gs': GcsCloudStorage(),
     's3': S3CloudStorage(),
     'r2': R2CloudStorage(),
+    'idrive': IDriveCloudStorage(),
     'cos': IBMCosCloudStorage(),
     'oci': OciCloudStorage(),
     'nebius': NebiusCloudStorage(),
